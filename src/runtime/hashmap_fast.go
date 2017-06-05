@@ -223,8 +223,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 		if key.len < 32 {
 			// short key, doing lots of comparisons is ok
 			for i := uintptr(0); i < bucketCnt; i++ {
-				x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
-				if x == empty {
+				if b.tophash[i] == empty {
 					continue
 				}
 				k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
@@ -240,8 +239,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 		// long key, try not to do more comparisons than necessary
 		keymaybe := uintptr(bucketCnt)
 		for i := uintptr(0); i < bucketCnt; i++ {
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
-			if x == empty {
+			if b.tophash[i] == empty {
 				continue
 			}
 			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
@@ -293,8 +291,7 @@ dohash:
 	}
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
-			if x != top {
+			if b.tophash[i] != top {
 				continue
 			}
 			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
@@ -330,8 +327,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 		if key.len < 32 {
 			// short key, doing lots of comparisons is ok
 			for i := uintptr(0); i < bucketCnt; i++ {
-				x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
-				if x == empty {
+				if b.tophash[i] == empty {
 					continue
 				}
 				k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
@@ -347,8 +343,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 		// long key, try not to do more comparisons than necessary
 		keymaybe := uintptr(bucketCnt)
 		for i := uintptr(0); i < bucketCnt; i++ {
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
-			if x == empty {
+			if b.tophash[i] == empty {
 				continue
 			}
 			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
@@ -400,8 +395,7 @@ dohash:
 	}
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
-			if x != top {
+			if b.tophash[i] != top {
 				continue
 			}
 			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
