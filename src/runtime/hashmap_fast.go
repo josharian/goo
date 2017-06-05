@@ -220,6 +220,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 	if h.B == 0 {
 		// One-bucket table.
 		b := (*bmap)(h.buckets)
+		_ = b.tophash // hoist nil check out of loops
 		if key.len < 32 {
 			// short key, doing lots of comparisons is ok
 			for i := uintptr(0); i < bucketCnt; i++ {
@@ -290,6 +291,7 @@ dohash:
 		top += minTopHash
 	}
 	for {
+		_ = b.tophash // hoist nil check out of loop
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
 				continue
