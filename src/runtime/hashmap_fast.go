@@ -124,7 +124,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 		b = (*bmap)(h.buckets)
 	} else {
 		hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
-		m := uintptr(1)<<h.B - 1
+		m := uintptr(1)<<(h.B&63) - 1
 		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 		if c := h.oldbuckets; c != nil {
 			if !h.sameSizeGrow() {
