@@ -480,10 +480,10 @@ func (h heapBits) forward(n uintptr) heapBits {
 // The caller can test morePointers and isPointer by &-ing with bitScan and bitPointer.
 // The result includes in its higher bits the bits for subsequent words
 // described by the same bitmap byte.
-func (h heapBits) bits() uint32 {
+func (h heapBits) bits() uint8 {
 	// The (shift & 31) eliminates a test and conditional branch
 	// from the generated code.
-	return uint32(*h.bitp) >> (h.shift & 31)
+	return uint8(uint32(*h.bitp) >> (h.shift & 31))
 }
 
 // morePointers returns true if this word and all remaining words in this object
