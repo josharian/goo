@@ -138,7 +138,9 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 		}
 	}
 	for {
-		_ = b.tophash // hoist nil check out of loop
+		if b == nil {
+			return unsafe.Pointer(&zeroVal[0])
+		}
 		for i := uintptr(0); i < bucketCnt; i++ {
 			k := *((*uint64)(add(unsafe.Pointer(b), dataOffset+i*8)))
 			if k != key {
@@ -150,9 +152,6 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
 		}
 		b = b.overflow(t)
-		if b == nil {
-			return unsafe.Pointer(&zeroVal[0])
-		}
 	}
 }
 
