@@ -138,13 +138,13 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 		}
 	}
 	for {
+		_ = b.tophash // hoist nil check out of loop
 		for i := uintptr(0); i < bucketCnt; i++ {
 			k := *((*uint64)(add(unsafe.Pointer(b), dataOffset+i*8)))
 			if k != key {
 				continue
 			}
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
-			if x == empty {
+			if b.tophash[i] == empty {
 				continue
 			}
 			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
