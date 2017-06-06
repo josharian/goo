@@ -118,6 +118,8 @@ func mapbucket(t *types.Type) *types.Type {
 	arr := types.NewArray(types.Types[TUINT8], BUCKETSIZE)
 	field = append(field, makefield("topbits", arr))
 
+	field = append(field, makefield("mask", types.Types[TUINT64]))
+
 	arr = types.NewArray(keytype, BUCKETSIZE)
 	arr.SetNoalg(true)
 	field = append(field, makefield("keys", arr))

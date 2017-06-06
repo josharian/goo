@@ -119,11 +119,12 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 		throw("concurrent map read and map write")
 	}
 	var b *bmap
+	var hash uintptr
 	if h.B == 0 {
 		// One-bucket table. No need to hash.
 		b = (*bmap)(h.buckets)
 	} else {
-		hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+		hash = t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
 		m := uintptr(1)<<(h.B&63) - 1
 		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 		if c := h.oldbuckets; c != nil {
@@ -141,15 +142,17 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 		if b == nil {
 			return unsafe.Pointer(&zeroVal[0])
 		}
-		for i := uintptr(0); i < bucketCnt; i++ {
-			k := *((*uint64)(add(unsafe.Pointer(b), dataOffset+i*8)))
-			if k != key {
-				continue
+		if hash&^b.mask == 0 {
+			for i := uintptr(0); i < bucketCnt; i++ {
+				k := *((*uint64)(add(unsafe.Pointer(b), dataOffset+i*8)))
+				if k != key {
+					continue
+				}
+				if b.tophash[i] == empty {
+					continue
+				}
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
 			}
-			if b.tophash[i] == empty {
-				continue
-			}
-			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
 		}
 		b = b.overflow(t)
 	}
@@ -167,11 +170,12 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 		throw("concurrent map read and map write")
 	}
 	var b *bmap
+	var hash uintptr
 	if h.B == 0 {
 		// One-bucket table. No need to hash.
 		b = (*bmap)(h.buckets)
 	} else {
-		hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+		hash = t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
 		m := uintptr(1)<<h.B - 1
 		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 		if c := h.oldbuckets; c != nil {
@@ -186,16 +190,18 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 		}
 	}
 	for {
-		for i := uintptr(0); i < bucketCnt; i++ {
-			k := *((*uint64)(add(unsafe.Pointer(b), dataOffset+i*8)))
-			if k != key {
-				continue
+		if hash&^b.mask == 0 {
+			for i := uintptr(0); i < bucketCnt; i++ {
+				k := *((*uint64)(add(unsafe.Pointer(b), dataOffset+i*8)))
+				if k != key {
+					continue
+				}
+				x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
+				if x == empty {
+					continue
+				}
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize)), true
 			}
-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
-			if x == empty {
-				continue
-			}
-			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize)), true
 		}
 		b = b.overflow(t)
 		if b == nil {
@@ -539,12 +545,14 @@ again:
 
 	var inserti *uint8
 	var insertk unsafe.Pointer
+	var insertmask *uintptr
 	var val unsafe.Pointer
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
 				if b.tophash[i] == empty && inserti == nil {
 					inserti = &b.tophash[i]
+					insertmask = &b.mask
 					insertk = add(unsafe.Pointer(b), dataOffset+i*8)
 					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
 				}
@@ -577,6 +585,7 @@ again:
 		// all current buckets are full, allocate a new one.
 		newb := h.newoverflow(t, b)
 		inserti = &newb.tophash[0]
+		insertmask = &newb.mask
 		insertk = add(unsafe.Pointer(newb), dataOffset)
 		val = add(insertk, bucketCnt*8)
 	}
@@ -584,6 +593,7 @@ again:
 	// store new key/value at insert position
 	*((*uint64)(insertk)) = key
 	*inserti = top
+	*insertmask |= hash
 	h.count++
 
 done:

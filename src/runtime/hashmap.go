@@ -141,6 +141,7 @@ type bmap struct {
 	// for each key in this bucket. If tophash[0] < minTopHash,
 	// tophash[0] is a bucket evacuation state instead.
 	tophash [bucketCnt]uint8
+	mask    uintptr
 	// Followed by bucketCnt keys and then bucketCnt values.
 	// NOTE: packing all the keys together and then all the values together makes the
 	// code a bit more complicated than alternating key/value/key/value/... but it allows
@@ -1084,10 +1085,10 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 					k2 = *((*unsafe.Pointer)(k2))
 				}
 				useX := true
+				// Compute hash to make our evacuation decision (whether we need
+				// to send this key/value to bucket x or bucket y).
+				hash := alg.hash(k2, uintptr(h.hash0))
 				if !h.sameSizeGrow() {
-					// Compute hash to make our evacuation decision (whether we need
-					// to send this key/value to bucket x or bucket y).
-					hash := alg.hash(k2, uintptr(h.hash0))
 					if h.flags&iterator != 0 {
 						if !t.reflexivekey && !alg.equal(k2, k2) {
 							// If key != key (NaNs), then the hash could be (and probably
@@ -1124,6 +1125,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 						xv = add(xk, bucketCnt*uintptr(t.keysize))
 					}
 					x.tophash[xi] = top
+					x.mask |= hash
 					if t.indirectkey {
 						*(*unsafe.Pointer)(xk) = k2 // copy pointer
 					} else {
@@ -1147,6 +1149,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 						yv = add(yk, bucketCnt*uintptr(t.keysize))
 					}
 					y.tophash[yi] = top
+					y.mask |= hash
 					if t.indirectkey {
 						*(*unsafe.Pointer)(yk) = k2
 					} else {
