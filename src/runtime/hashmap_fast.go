@@ -145,7 +145,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 			}
 			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
 			if x == empty {
-				continue
+				break
 			}
 			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
 		}
@@ -194,7 +194,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 			}
 			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
 			if x == empty {
-				continue
+				break
 			}
 			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize)), true
 		}
@@ -540,7 +540,7 @@ again:
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
 			if b.tophash[i] != top {
-				if b.tophash[i] == empty && inserti == nil {
+				if b.tophash[i] <= deleted && inserti == nil {
 					inserti = &b.tophash[i]
 					insertk = add(unsafe.Pointer(b), dataOffset+i*8)
 					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
@@ -777,7 +777,7 @@ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
 			*k = 0
 			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*8 + i*uintptr(t.valuesize))
 			typedmemclr(t.elem, v)
-			b.tophash[i] = empty
+			b.tophash[i] = deleted
 			h.count--
 			goto done
 		}

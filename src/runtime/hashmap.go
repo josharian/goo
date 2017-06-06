@@ -87,10 +87,11 @@ const (
 	// entries in the evacuated* states (except during the evacuate() method, which only happens
 	// during map writes and thus no one else can observe the map during that time).
 	empty          = 0 // cell is empty
-	evacuatedEmpty = 1 // cell is empty, bucket is evacuated.
-	evacuatedX     = 2 // key/value is valid.  Entry has been evacuated to first half of larger table.
+	deleted        = 1
+	evacuatedEmpty = 2 // cell is empty, bucket is evacuated.
+	evacuatedX     = 4 // key/value is valid.  Entry has been evacuated to first half of larger table.
 	evacuatedY     = 3 // same as above, but evacuated to second half of larger table.
-	minTopHash     = 4 // minimum tophash for a normal filled cell.
+	minTopHash     = 5 // minimum tophash for a normal filled cell.
 
 	// flags
 	iterator     = 1 // there may be an iterator using buckets
@@ -170,7 +171,7 @@ type hiter struct {
 
 func evacuated(b *bmap) bool {
 	h := b.tophash[0]
-	return h > empty && h < minTopHash
+	return h > deleted && h < minTopHash
 }
 
 func (b *bmap) overflow(t *maptype) *bmap {
@@ -820,7 +821,7 @@ next:
 		offi := (i + it.offset) & (bucketCnt - 1)
 		k := add(unsafe.Pointer(b), dataOffset+uintptr(offi)*uintptr(t.keysize))
 		v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+uintptr(offi)*uintptr(t.valuesize))
-		if b.tophash[offi] != empty && b.tophash[offi] != evacuatedEmpty {
+		if b.tophash[offi] > deleted && b.tophash[offi] != evacuatedEmpty {
 			if checkBucket != noCheck && !h.sameSizeGrow() {
 				// Special case: iterator was started during a grow to a larger size
 				// and the grow is not done yet. We're working on a bucket whose
@@ -1072,7 +1073,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 			v := add(k, bucketCnt*uintptr(t.keysize))
 			for i := 0; i < bucketCnt; i, k, v = i+1, add(k, uintptr(t.keysize)), add(v, uintptr(t.valuesize)) {
 				top := b.tophash[i]
-				if top == empty {
+				if top <= deleted {
 					b.tophash[i] = evacuatedEmpty
 					continue
 				}
